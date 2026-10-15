@@ -1,23 +1,39 @@
 import React, { useState } from 'react';
-import { Copy, Check, Eye, EyeOff, RefreshCw, Key, Globe, HelpCircle } from 'lucide-react';
-import { IngestConfig } from '../types/stream';
+import {
+  Copy,
+  Check,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  Key,
+  Globe,
+  HelpCircle,
+  AlertTriangle,
+  Download,
+  Terminal
+} from 'lucide-react';
+import { IngestConfig, Destination } from '../types/stream';
 
 interface ObsIngestCardProps {
   ingest: IngestConfig;
+  destinations: Destination[];
   onRegenerateKey: () => void;
   onOpenGuide: () => void;
-  onUpdateRegion: (region: string) => void;
+  onUpdateServerUrl: (url: string) => void;
 }
 
 export const ObsIngestCard: React.FC<ObsIngestCardProps> = ({
   ingest,
+  destinations,
   onRegenerateKey,
   onOpenGuide,
-  onUpdateRegion,
+  onUpdateServerUrl,
 }) => {
   const [showKey, setShowKey] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isConfirmingRegen, setIsConfirmingRegen] = useState(false);
+  const [isEditingServer, setIsEditingServer] = useState(false);
+  const [serverInput, setServerInput] = useState(ingest.serverUrl);
 
   const copyToClipboard = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -33,6 +49,59 @@ export const ObsIngestCard: React.FC<ObsIngestCardProps> = ({
       onRegenerateKey();
       setIsConfirmingRegen(false);
     }
+  };
+
+  const handleSaveServer = () => {
+    onUpdateServerUrl(serverInput.trim() || 'rtmp://127.0.0.1:1935/live');
+    setIsEditingServer(false);
+  };
+
+  const downloadLocalRelayScript = () => {
+    const enabledDests = destinations.filter((d) => d.enabled && d.streamKey);
+    const outputs = enabledDests
+      .map((d) => {
+        const fullUrl = d.serverUrl.endsWith('/')
+          ? `${d.serverUrl}${d.streamKey}`
+          : `${d.serverUrl}/${d.streamKey}`;
+        return `-c:v copy -c:a copy -f flv "${fullUrl}"`;
+      })
+      .join(' ');
+
+    const batContent = `@echo off
+title StreamForge Multistream Relay
+echo ========================================================
+echo   StreamForge Local RTMP Multistream Relay Engine
+echo   Relaying OBS to Twitch, YouTube, and Kick
+echo ========================================================
+echo.
+echo Checking for ffmpeg...
+where ffmpeg >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] FFmpeg is not installed or not in your PATH.
+    echo Please download ffmpeg from https://ffmpeg.org/download.html or install via:
+    echo   winget install Gyan.FFmpeg
+    pause
+    exit /b
+)
+
+echo Starting RTMP listener on rtmp://127.0.0.1:1935/live/${ingest.streamKey}
+echo Point OBS Studio Server to: rtmp://127.0.0.1:1935/live
+echo Point OBS Studio Stream Key to: ${ingest.streamKey}
+echo.
+echo Press Ctrl+C in this window to stop relaying.
+echo.
+
+ffmpeg -listen 1 -i "rtmp://0.0.0.0:1935/live/${ingest.streamKey}" ${outputs}
+pause
+`;
+
+    const blob = new Blob([batContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'start-multistream-relay.bat';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -51,7 +120,7 @@ export const ObsIngestCard: React.FC<ObsIngestCardProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Paste these credentials into OBS Studio under <strong className="text-slate-300">Settings &gt; Stream &gt; Custom</strong>.
+            Configure OBS under <strong className="text-slate-300">Settings &gt; Stream &gt; Custom</strong>.
           </p>
         </div>
 
@@ -64,6 +133,41 @@ export const ObsIngestCard: React.FC<ObsIngestCardProps> = ({
         </button>
       </div>
 
+      {/* Host Name Not Found Warning Banner */}
+      <div className="mb-4 p-3 rounded-lg bg-amber-950/30 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-start gap-2.5">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-semibold text-amber-200">
+              Got &quot;Host name not found&quot; in OBS?
+            </span>
+            <p className="text-slate-300 mt-0.5 leading-relaxed">
+              OBS throws this error if a domain has no DNS. Use <strong className="text-white font-mono">rtmp://127.0.0.1:1935/live</strong> for your local machine, or use the free <strong className="text-indigo-300">OBS Multi-RTMP Plugin</strong> to stream directly from OBS!
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              onUpdateServerUrl('rtmp://127.0.0.1:1935/live');
+              setServerInput('rtmp://127.0.0.1:1935/live');
+            }}
+            className="px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-medium transition-colors whitespace-nowrap"
+          >
+            Use 127.0.0.1
+          </button>
+          <button
+            onClick={downloadLocalRelayScript}
+            className="flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors whitespace-nowrap"
+            title="Download ready-to-run batch file that starts local RTMP relay with your keys"
+          >
+            <Download className="w-3 h-3" />
+            <span>1-Click Relay (.bat)</span>
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Server URL */}
         <div>
@@ -72,39 +176,65 @@ export const ObsIngestCard: React.FC<ObsIngestCardProps> = ({
               <Globe className="w-3.5 h-3.5 text-slate-400" />
               <span>Server (RTMP URL)</span>
             </label>
-            <div className="flex items-center gap-2">
-              <select
-                value={ingest.region}
-                onChange={(e) => onUpdateRegion(e.target.value)}
-                className="bg-slate-900 border border-slate-700 text-[11px] text-slate-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-indigo-500"
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateServerUrl('rtmp://127.0.0.1:1935/live');
+                  setServerInput('rtmp://127.0.0.1:1935/live');
+                }}
+                className="text-[10px] text-slate-400 hover:text-slate-200 underline"
               >
-                <option value="us-east (Auto-Detected)">us-east (Auto-Detected)</option>
-                <option value="us-west (Oregon)">us-west (Oregon)</option>
-                <option value="eu-central (Frankfurt)">eu-central (Frankfurt)</option>
-                <option value="ap-southeast (Singapore)">ap-southeast (Singapore)</option>
-                <option value="localhost:1935">Localhost (127.0.0.1:1935)</option>
-              </select>
+                Localhost
+              </button>
+              <span className="text-slate-600">·</span>
+              <button
+                type="button"
+                onClick={() => setIsEditingServer(!isEditingServer)}
+                className="text-[10px] text-indigo-400 hover:text-indigo-300"
+              >
+                {isEditingServer ? 'Done' : 'Edit IP'}
+              </button>
             </div>
           </div>
-          <div className="flex items-center rounded-lg bg-slate-950/80 border border-slate-800 p-1 pl-3 focus-within:border-indigo-500 transition-colors">
-            <input
-              type="text"
-              readOnly
-              value={ingest.serverUrl}
-              className="bg-transparent text-xs font-mono text-slate-200 w-full focus:outline-none"
-            />
-            <button
-              onClick={() => copyToClipboard(ingest.serverUrl, 'server')}
-              className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
-              title="Copy Server URL"
-            >
-              {copiedField === 'server' ? (
-                <Check className="w-4 h-4 text-emerald-400" />
-              ) : (
-                <Copy className="w-4 h-4" />
-              )}
-            </button>
-          </div>
+
+          {isEditingServer ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={serverInput}
+                onChange={(e) => setServerInput(e.target.value)}
+                placeholder="rtmp://127.0.0.1:1935/live"
+                className="bg-slate-950 border border-slate-700 text-xs font-mono text-slate-200 w-full rounded px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+              />
+              <button
+                onClick={handleSaveServer}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded shrink-0"
+              >
+                Save
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center rounded-lg bg-slate-950/80 border border-slate-800 p-1 pl-3 focus-within:border-indigo-500 transition-colors">
+              <input
+                type="text"
+                readOnly
+                value={ingest.serverUrl}
+                className="bg-transparent text-xs font-mono text-slate-200 w-full focus:outline-none"
+              />
+              <button
+                onClick={() => copyToClipboard(ingest.serverUrl, 'server')}
+                className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
+                title="Copy Server URL"
+              >
+                {copiedField === 'server' ? (
+                  <Check className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Stream Key */}

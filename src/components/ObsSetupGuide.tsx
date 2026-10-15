@@ -9,7 +9,11 @@ import {
   ArrowRight,
   Monitor,
   HelpCircle,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle,
+  Layers,
+  Terminal,
+  Cpu
 } from 'lucide-react';
 import { IngestConfig } from '../types/stream';
 
@@ -19,6 +23,7 @@ interface ObsSetupGuideProps {
 
 export const ObsSetupGuide: React.FC<ObsSetupGuideProps> = ({ ingest }) => {
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [activeGuideTab, setActiveGuideTab] = useState<'relay' | 'plugin' | 'troubleshooting'>('troubleshooting');
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -66,138 +71,254 @@ Key=${ingest.streamKey}
 
   return (
     <div className="space-y-6">
-      {/* Hero Explainer Banner */}
-      <div className="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl relative overflow-hidden">
-        <div className="max-w-3xl">
-          <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-2">
-            <Zap className="w-4 h-4" />
-            <span>Single Ingest &rarr; Infinite Fan-Out</span>
-          </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            How to Connect OBS Studio to Multistream
-          </h2>
-          <p className="text-sm text-slate-300 mt-2 leading-relaxed">
-            Instead of streaming directly to Twitch, you stream <strong className="text-white">once</strong> to StreamForge with your unique stream key. StreamForge then duplicates and relays your stream to <strong className="text-purple-400">Twitch</strong>, <strong className="text-red-400">YouTube</strong>, and <strong className="text-emerald-400">Kick</strong> simultaneously. Your gaming PC only uploads a single video stream!
-          </p>
+      {/* Alert banner directly answering the user's error */}
+      <div className="bg-amber-950/30 border border-amber-500/40 rounded-xl p-5 shadow-lg">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-sm font-bold text-amber-200">
+              Why OBS Shows &quot;Host name not found. Make sure you enter a valid streaming server...&quot;
+            </h3>
+            <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+              When OBS connects to an RTMP address, it performs a DNS lookup on the domain name. If the domain has no active DNS record, OBS cannot find the server IP and fails immediately.
+            </p>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-lg bg-slate-900/90 border border-slate-800">
+                <span className="font-semibold text-emerald-400 block mb-1">
+                  Fix 1: Use Local Loopback (127.0.0.1)
+                </span>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  Change the Server in OBS to <strong className="text-white font-mono">rtmp://127.0.0.1:1935/live</strong>. Your computer always recognizes 127.0.0.1 locally, so DNS never fails!
+                </p>
+              </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button
-              onClick={downloadObsProfile}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download OBS Profile (.ini)</span>
-            </button>
-            <span className="text-xs text-slate-400">
-              Or manually copy the two fields below into OBS:
-            </span>
+              <div className="p-3 rounded-lg bg-slate-900/90 border border-slate-800">
+                <span className="font-semibold text-indigo-400 block mb-1">
+                  Fix 2: Use OBS Multi-RTMP Plugin
+                </span>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  Stream directly from inside OBS to Twitch, YouTube, and Kick without running any server at all! (See Plugin Guide tab below).
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Step by Step Visual Guide */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Step 1 */}
-        <div className="bg-[#111827] border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-sm mb-3">
-              1
-            </div>
-            <h3 className="text-base font-semibold text-white">Open OBS Stream Settings</h3>
-            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-              In OBS Studio, click on <strong className="text-slate-200">Settings</strong> (bottom-right panel), then click on the <strong className="text-slate-200">Stream</strong> tab on the left.
+      {/* Guide Mode Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+        <button
+          onClick={() => setActiveGuideTab('troubleshooting')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            activeGuideTab === 'troubleshooting'
+              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>DNS Error Fix &amp; Local Relay</span>
+        </button>
+
+        <button
+          onClick={() => setActiveGuideTab('plugin')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            activeGuideTab === 'plugin'
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>OBS Multi-RTMP Plugin (No Server Needed)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveGuideTab('relay')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            activeGuideTab === 'relay'
+              ? 'bg-indigo-600 text-white shadow-sm'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Terminal className="w-3.5 h-3.5" />
+          <span>Standard Custom RTMP Setup</span>
+        </button>
+      </div>
+
+      {/* TAB 1: Troubleshooting & Local Loopback Fix */}
+      {activeGuideTab === 'troubleshooting' && (
+        <div className="space-y-6">
+          <div className="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl">
+            <h3 className="text-base font-bold text-white mb-2">
+              How to Run the Local Relay on Your Machine (3 Quick Steps)
+            </h3>
+            <p className="text-xs text-slate-300 mb-5 leading-relaxed">
+              If you want the relay on your PC so OBS only encodes 1 stream and your PC relays it to Twitch, YouTube, and Kick:
             </p>
-            <div className="mt-4 p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-xs space-y-2">
-              <div className="flex justify-between items-center text-slate-400">
-                <span>Service:</span>
-                <span className="text-indigo-400 font-semibold bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                  Custom...
-                </span>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between">
+                <div>
+                  <span className="w-6 h-6 rounded bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs mb-2">
+                    1
+                  </span>
+                  <h4 className="font-semibold text-white">Download the 1-Click Script</h4>
+                  <p className="text-slate-400 text-[11px] mt-1 leading-relaxed">
+                    Download the pre-configured <code className="text-indigo-300">start-multistream-relay.bat</code> file generated from your stream keys.
+                  </p>
+                </div>
+                <div className="mt-3">
+                  <span className="text-[10px] text-slate-500">Requires FFmpeg on your PC</span>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-500">
-                Change the dropdown from Twitch/YouTube to &quot;Custom...&quot;
+
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between">
+                <div>
+                  <span className="w-6 h-6 rounded bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs mb-2">
+                    2
+                  </span>
+                  <h4 className="font-semibold text-white">Configure OBS to 127.0.0.1</h4>
+                  <p className="text-slate-400 text-[11px] mt-1 leading-relaxed">
+                    In OBS Settings &gt; Stream &gt; Custom:
+                  </p>
+                  <div className="mt-2 space-y-1 font-mono text-[10px]">
+                    <div className="bg-slate-900 p-1 rounded text-slate-300">
+                      Server: rtmp://127.0.0.1:1935/live
+                    </div>
+                    <div className="bg-slate-900 p-1 rounded text-slate-300">
+                      Key: {ingest.streamKey}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between">
+                <div>
+                  <span className="w-6 h-6 rounded bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs mb-2">
+                    3
+                  </span>
+                  <h4 className="font-semibold text-white">Double-Click and Stream!</h4>
+                  <p className="text-slate-400 text-[11px] mt-1 leading-relaxed">
+                    Double-click the .bat file to start the relay, then click <strong className="text-emerald-400">Start Streaming</strong> in OBS. OBS connects instantly with zero DNS errors!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: Native OBS Multiple RTMP Output Plugin (No Server Needed) */}
+      {activeGuideTab === 'plugin' && (
+        <div className="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl space-y-5">
+          <div>
+            <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase mb-1">
+              <Zap className="w-4 h-4" />
+              <span>Recommended Native OBS Method</span>
+            </div>
+            <h3 className="text-lg font-bold text-white">
+              Stream to Twitch, YouTube, and Kick directly inside OBS (obs-multi-rtmp)
+            </h3>
+            <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+              If you don&apos;t want to run a separate relay server, you can install the official free OBS plugin called <strong className="text-white">Multiple RTMP Outputs (by sorayuki)</strong>. It adds a dock inside OBS where you stream to Twitch, YouTube, and Kick with 1 click.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+              <span className="text-indigo-400 font-bold text-xs">Step 1</span>
+              <h4 className="font-semibold text-white mt-1">Install Plugin</h4>
+              <p className="text-slate-400 text-[11px] mt-1 leading-relaxed">
+                Download the installer for <strong className="text-slate-200">obs-multi-rtmp</strong> from GitHub or OBS Forums (100% free &amp; open source).
+              </p>
+              <a
+                href="https://github.com/sorayuki/obs-multi-rtmp/releases"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold mt-2"
+              >
+                <span>Download Plugin</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+              <span className="text-indigo-400 font-bold text-xs">Step 2</span>
+              <h4 className="font-semibold text-white mt-1">Twitch in Settings</h4>
+              <p className="text-slate-400 text-[11px] mt-1 leading-relaxed">
+                In standard OBS Settings &gt; Stream, select <strong className="text-purple-400">Twitch</strong> and paste your Twitch key as primary.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+              <span className="text-indigo-400 font-bold text-xs">Step 3</span>
+              <h4 className="font-semibold text-white mt-1">Add YouTube &amp; Kick</h4>
+              <p className="text-slate-400 text-[11px] mt-1 leading-relaxed">
+                In the new &quot;Multiple Output&quot; panel in OBS, click <strong className="text-white">&quot;Add new target&quot;</strong>. Paste YouTube RTMP URL and your YouTube key, then add Kick!
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+              <span className="text-indigo-400 font-bold text-xs">Step 4</span>
+              <h4 className="font-semibold text-white mt-1">Sync Start</h4>
+              <p className="text-slate-400 text-[11px] mt-1 leading-relaxed">
+                Set &quot;Sync start with OBS&quot; to Checked. Whenever you click Start Streaming in OBS, all 3 platforms go live simultaneously!
               </p>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Step 2 */}
-        <div className="bg-[#111827] border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-sm mb-3">
-              2
-            </div>
-            <h3 className="text-base font-semibold text-white">Paste Server &amp; Key</h3>
-            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-              Paste your StreamForge Ingest URL and Stream Key into the two fields.
+      {/* TAB 3: Standard RTMP Ingest */}
+      {activeGuideTab === 'relay' && (
+        <div className="space-y-6">
+          <div className="bg-[#111827] border border-slate-800 rounded-xl p-6 shadow-xl">
+            <h3 className="text-base font-bold text-white mb-2">
+              OBS Custom RTMP Settings
+            </h3>
+            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
+              If running a relay server (locally or on a VPS), paste these exact credentials into OBS Studio:
             </p>
 
-            <div className="mt-4 space-y-2 text-xs">
-              <div>
-                <span className="text-[11px] text-slate-400 block mb-1">Server:</span>
-                <div className="flex items-center bg-slate-950 border border-slate-800 rounded px-2 py-1">
-                  <span className="font-mono text-[10px] text-slate-300 truncate flex-1">
-                    {ingest.serverUrl}
-                  </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg">
+                <span className="text-slate-400 block mb-1">Server URL:</span>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-emerald-400 text-xs">{ingest.serverUrl}</span>
                   <button
-                    onClick={() => copyToClipboard(ingest.serverUrl, 'guide-server')}
-                    className="ml-1 text-slate-400 hover:text-white"
+                    onClick={() => copyToClipboard(ingest.serverUrl, 'guide-srv')}
+                    className="p-1 text-slate-400 hover:text-white"
                   >
-                    {copiedField === 'guide-server' ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
+                    {copiedField === 'guide-srv' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
 
-              <div>
-                <span className="text-[11px] text-slate-400 block mb-1">Stream Key:</span>
-                <div className="flex items-center bg-slate-950 border border-slate-800 rounded px-2 py-1">
-                  <span className="font-mono text-[10px] text-slate-300 truncate flex-1">
-                    {ingest.streamKey}
-                  </span>
+              <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg">
+                <span className="text-slate-400 block mb-1">Stream Key:</span>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-indigo-400 text-xs truncate max-w-[200px]">{ingest.streamKey}</span>
                   <button
                     onClick={() => copyToClipboard(ingest.streamKey, 'guide-key')}
-                    className="ml-1 text-slate-400 hover:text-white"
+                    className="p-1 text-slate-400 hover:text-white"
                   >
-                    {copiedField === 'guide-key' ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
+                    {copiedField === 'guide-key' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Step 3 */}
-        <div className="bg-[#111827] border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-sm mb-3">
-              3
-            </div>
-            <h3 className="text-base font-semibold text-white">Click Start Streaming!</h3>
-            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
-              Click <strong className="text-emerald-400">Start Streaming</strong> in OBS. StreamForge receives your 1080p feed and instantly fans it out to all enabled platforms!
-            </p>
-
-            <div className="mt-4 p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-xs space-y-1.5">
-              <div className="flex items-center justify-between text-slate-300">
-                <span>Output Encoding:</span>
-                <span className="font-mono text-emerald-400">Pass-Through (0% CPU)</span>
-              </div>
-              <div className="flex items-center justify-between text-slate-300">
-                <span>Active Targets:</span>
-                <span className="font-mono text-indigo-400">Twitch + YouTube + Kick</span>
-              </div>
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                onClick={downloadObsProfile}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download OBS Profile (.ini)</span>
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Recommended Encoder Settings Table */}
       <div className="bg-[#111827] border border-slate-800 rounded-xl p-5 shadow-lg">

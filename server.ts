@@ -17,9 +17,9 @@ app.use(express.json());
 
 // In-memory relay state
 let ingestConfig: IngestConfig = {
-  serverUrl: 'rtmp://live.streamforge.io:1935/live',
+  serverUrl: 'rtmp://127.0.0.1:1935/live',
   streamKey: 'sf_live_a982e0bf41d9c748',
-  region: 'us-east (Auto-Detected)',
+  region: 'Local PC (127.0.0.1)',
   status: 'idle',
   codec: 'h264 (High) / aac',
   resolution: '1920x1080',

@@ -22,9 +22,9 @@ export default function App() {
 
   // Ingest state
   const [ingest, setIngest] = useState<IngestConfig>({
-    serverUrl: 'rtmp://live.streamforge.io:1935/live',
+    serverUrl: 'rtmp://127.0.0.1:1935/live',
     streamKey: 'sf_live_a982e0bf41d9c748',
-    region: 'us-east (Auto-Detected)',
+    region: 'Local PC (127.0.0.1)',
     status: 'idle',
     codec: 'h264 (High) / aac',
     resolution: '1920x1080',
@@ -348,9 +348,17 @@ export default function App() {
             {/* Top OBS Ingest Credentials Card */}
             <ObsIngestCard
               ingest={ingest}
+              destinations={destinations}
               onRegenerateKey={handleRegenerateKey}
               onOpenGuide={() => setActiveTab('setup')}
-              onUpdateRegion={handleUpdateRegion}
+              onUpdateServerUrl={(url) => {
+                setIngest((prev) => ({ ...prev, serverUrl: url }));
+                fetch('/api/config/update', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ serverUrl: url }),
+                }).catch(() => {});
+              }}
             />
 
             {/* Studio Workspace Layout */}
